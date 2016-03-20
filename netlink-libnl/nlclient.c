@@ -22,30 +22,40 @@ static int cb_handler(struct nl_msg * msg, void * arg)
   * (int*) arg = 123; // cbarg
 
   struct nlmsghdr * hdr = nlmsg_hdr(msg);
+	
+
+
   struct genlmsghdr * gnlh = nlmsg_data(hdr);
 
-  int valid =
-    genlmsg_validate(hdr, 0, DEMO_ATTR_MAX, demo_gnl_policy);
-  printf("valid %d %s\n", valid, valid ? "ERROR" : "OK");
+  nl_msg_dump(msg, stderr);
 
-  // one way
-  struct nlattr * attrs[DEMO_ATTR_MAX + 1];
+  if (hdr->nlmsg_type == 2) {
+    printf("hdr->nlmsg_type is ERROR. Skipping message parsing!\n");	
+  } else {
 
-  if (genlmsg_parse(hdr, 0, attrs, DEMO_ATTR_MAX, demo_gnl_policy) < 0)
-    {
-      printf("genlsmg_parse ERROR\n");
+    int valid =
+      genlmsg_validate(hdr, 0, DEMO_ATTR_MAX, demo_gnl_policy);
+    printf("valid %d %s\n", valid, valid ? "ERROR" : "OK");
+
+    // one way
+    struct nlattr * attrs[DEMO_ATTR_MAX + 1];
+
+    if (genlmsg_parse(hdr, 0, attrs, DEMO_ATTR_MAX, demo_gnl_policy) < 0)
+      {
+        printf("genlsmg_parse ERROR\n");
+      }
+
+    else
+      {
+        printf("genlsmg_parse OK\n");
+      
+        printf("attr1 %s\n", nla_get_string(attrs[DEMO_ATTR1_STRING]));
+        printf("attr2 %x\n", nla_get_u16(attrs[DEMO_ATTR2_UINT16]));
+        struct attr_custom * cp = (struct attr_custom *) nla_data(attrs[DEMO_ATTR3_CUSTOM]);
+        printf("attr3 %d %ld %f %lf\n", cp->a, cp->b, cp->c,cp->d);
+
+      }
     }
-
-  else
-    {
-      printf("genlsmg_parse OK\n");
-      printf("attr1 %s\n", nla_get_string(attrs[DEMO_ATTR1_STRING]));
-      printf("attr2 %x\n", nla_get_u16(attrs[DEMO_ATTR2_UINT16]));
-      struct attr_custom * cp = (struct attr_custom *) nla_data(attrs[DEMO_ATTR3_CUSTOM]);
-      printf("attr3 %d %ld %f %lf\n", cp->a, cp->b, cp->c,cp->d);
-
-    }
-
   // another way
   printf("gnlh->cmd %d\n", gnlh->cmd);	//--- DEMO_CMD_ECHO
 
@@ -59,7 +69,7 @@ static int cb_handler(struct nl_msg * msg, void * arg)
       attr = nla_next(attr, &remaining);
     }
 
-  nl_msg_dump(msg, stderr);
+  
 
   return NL_STOP;
 }
@@ -104,6 +114,16 @@ int main()
   nl_cb_err(cb, NL_CB_DEBUG, NULL, NULL);
 
   int nrecv = nl_recvmsgs_report(sk, cb);
+
+  printf("cbarg %d nrecv %d\n", cbarg, nrecv);
+
+  printf("First test if it blocks here for incoming messages:\n");
+  nrecv = nl_recvmsgs_report(sk, cb);
+
+  printf("cbarg %d nrecv %d\n", cbarg, nrecv);
+
+  printf("Second test if it blocks here for incoming messages:\n");
+  nrecv = nl_recvmsgs_report(sk, cb);
 
   printf("cbarg %d nrecv %d\n", cbarg, nrecv);
 
